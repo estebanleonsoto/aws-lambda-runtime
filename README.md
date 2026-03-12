@@ -16,6 +16,18 @@
 
 A lightweight Clojure library for building [AWS Lambda custom runtimes](https://docs.aws.amazon.com/lambda/latest/dg/runtimes-custom.html). Implements the Lambda Runtime API polling loop using only JDK built-ins — no extra HTTP dependencies, GraalVM native-image friendly.
 
+## Quickstart
+
+Scaffold a new Lambda project using the built-in [deps-new](https://github.com/seancorfield/deps-new) template:
+
+```bash
+clj -Tnew create \
+  :template io.github.estebanleonsoto/aws-lambda-runtime \
+  :name myorg/my-lambda
+```
+
+This generates a ready-to-deploy project with handler, tests, uberjar build, and GraalVM config included. See the [Getting Started guide](docs/getting-started.md) for the full walkthrough.
+
 ## Installation
 
 ```clojure
@@ -68,23 +80,9 @@ Because the handler is just a function, Ring-style middleware composition works 
                       wrap-coerce-response)))
 ```
 
-## Building a native binary with GraalVM
+## GraalVM
 
-This library is designed to work with [GraalVM native-image](https://www.graalvm.org/latest/reference-manual/native-image/) for cold-start times under 300ms. AOT-compile your handler namespace and produce a `bootstrap` binary:
-
-```bash
-# 1. Build an uberjar
-clj -T:build uber
-
-# 2. Compile to native (requires GraalVM + native-image)
-native-image \
-  -jar target/my-lambda.jar \
-  -o bootstrap \
-  --no-fallback \
-  --initialize-at-build-time
-```
-
-Deploy the `bootstrap` binary as a Lambda function with the `provided.al2023` runtime.
+Designed for [GraalVM native-image](https://www.graalvm.org/latest/reference-manual/native-image/) — cold starts under 300ms. See the [Getting Started guide](docs/getting-started.md) for the full build and deploy instructions.
 
 ## API
 

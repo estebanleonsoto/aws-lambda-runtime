@@ -31,6 +31,14 @@
   (b/jar {:class-dir class-dir
           :jar-file  (format "target/%s-%s.jar" (name lib) version)}))
 
+(defn install [_]
+  (jar nil)
+  (b/install {:class-dir class-dir
+              :lib       lib
+              :version   version
+              :basis     @basis
+              :jar-file  (format "target/%s-%s.jar" (name lib) version)}))
+
 (defn deploy [_]
   (jar nil)
   (dd/deploy {:installer :remote
