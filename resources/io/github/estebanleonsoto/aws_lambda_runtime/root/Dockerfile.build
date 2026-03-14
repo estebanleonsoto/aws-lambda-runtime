@@ -28,12 +28,12 @@ WORKDIR /build
 
 # Cache deps before copying source
 COPY deps.edn build.clj ./
-RUN clj -P && clj -A:build -P
+RUN clojure -P && clojure -A:build -P
 
 COPY . .
 
 # Build uberjar (AOT all namespaces)
-RUN clj -T:build uber
+RUN clojure -T:build uber
 
 # Compile to native image
 RUN native-image \
