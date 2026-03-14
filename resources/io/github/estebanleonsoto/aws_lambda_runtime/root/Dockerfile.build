@@ -4,7 +4,7 @@ ARG GRAALVM_VERSION=21.0.2
 ARG GRAALVM_HOME=/opt/graalvm
 
 # Install build dependencies (gcc + zlib required by native-image linker)
-RUN dnf install -y gcc zlib-devel tar gzip which && dnf clean all
+RUN dnf install -y gcc zlib-devel tar gzip which git && dnf clean all
 
 # Install GraalVM Community Edition for JDK 21
 RUN curl -fL \
@@ -23,6 +23,12 @@ RUN curl -fL https://download.clojure.org/install/linux-install.sh \
     && chmod +x /tmp/install-clj.sh \
     && /tmp/install-clj.sh \
     && rm /tmp/install-clj.sh
+
+# Install the runtime library from source into the local Maven cache
+RUN git clone https://github.com/estebanleonsoto/aws-lambda-runtime.git /tmp/runtime \
+    && cd /tmp/runtime \
+    && clojure -T:build install \
+    && rm -rf /tmp/runtime
 
 WORKDIR /build
 
