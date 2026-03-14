@@ -1,4 +1,4 @@
 {:description "AWS Lambda function using com.thoughtsforge/aws-lambda-runtime"
- :transform   [["src"  "src/{{top/file}}"]
-               ["test" "test/{{top/file}}"]
+ :transform   [["src"  "src/{{top/file}}/{{main/file}}"]
+               ["test" "test/{{top/file}}/{{main/file}}"]
                ["root" ""]]}

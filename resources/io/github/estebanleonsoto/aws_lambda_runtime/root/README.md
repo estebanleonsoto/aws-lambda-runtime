@@ -4,7 +4,7 @@ AWS Lambda function built with [com.thoughtsforge/aws-lambda-runtime](https://gi
 
 ## Handler
 
-Edit `src/{{top/file}}/{{main/file}}.clj`. The entry point is:
+Edit `src/{{top/file}}/{{main/file}}/core.clj`. The entry point is:
 
 ```clojure
 (defn handle [event context]

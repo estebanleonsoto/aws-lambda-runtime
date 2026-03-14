@@ -1,4 +1,4 @@
-(ns {{top/ns}}.{{main/ns}}
+(ns {{top/ns}}.{{main/ns}}.core
   (:require [thoughtsforge.aws-lambda-runtime :as runtime])
   (:gen-class))
 

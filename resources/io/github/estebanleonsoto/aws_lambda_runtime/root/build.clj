@@ -19,4 +19,4 @@
   (b/uber {:class-dir class-dir
            :uber-file "target/bootstrap.jar"
            :basis     @basis
-           :main      (symbol "{{top/ns}}.{{main/ns}}")}))
+           :main      (symbol "{{top/ns}}.{{main/ns}}.core")}))

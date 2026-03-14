@@ -1,6 +1,6 @@
-(ns {{top/ns}}.{{main/ns}}-test
+(ns {{top/ns}}.{{main/ns}}.core-test
   (:require [clojure.test :refer [deftest is testing]]
-            [{{top/ns}}.{{main/ns}} :as core]))
+            [{{top/ns}}.{{main/ns}}.core :as core]))
 
 (deftest handle-test
   (testing "returns a successful response"

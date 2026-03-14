@@ -1,6 +1,6 @@
 [
   {
-    "name": "{{top/ns}}.{{main/file}}__init"
+    "name": "{{top/ns}}.{{main/file}}.core__init"
   },
   {
     "name": "com.fasterxml.jackson.databind.ObjectMapper",
