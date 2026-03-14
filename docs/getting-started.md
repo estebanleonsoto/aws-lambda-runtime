@@ -169,3 +169,44 @@ Expected output:
 ```json
 {"statusCode": 200, "body": "Hello, world"}
 ```
+
+---
+
+## Using inside a monorepo
+
+If your project has multiple Lambdas alongside Terraform infrastructure or shared code, you can scaffold each Lambda directly into a subdirectory using deps-new's `:target-dir` option.
+
+From the monorepo root:
+
+```
+my-backend/
+├── iac/           ← Terraform
+└── lambdas/
+    ├── auth/      ← first Lambda
+    └── orders/    ← second Lambda
+```
+
+**Scaffold the first Lambda:**
+
+```bash
+clj -Tnew create \
+  :template io.github.estebanleonsoto/aws-lambda-runtime \
+  :name myorg/auth \
+  :target-dir lambdas/auth
+```
+
+**Add subsequent Lambdas** using the `scripts/new-lambda.sh` helper that was generated with the first Lambda. Copy it to your monorepo root once:
+
+```bash
+cp lambdas/auth/scripts/new-lambda.sh scripts/new-lambda.sh
+chmod +x scripts/new-lambda.sh
+```
+
+Then any time you need a new Lambda:
+
+```bash
+./scripts/new-lambda.sh orders
+./scripts/new-lambda.sh notifications
+```
+
+Each Lambda is fully self-contained — its own `deps.edn`, `build.sh`, `Dockerfile.build`, and `reflect-config.json`. Build and deploy them independently.

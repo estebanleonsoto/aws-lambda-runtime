@@ -13,6 +13,21 @@ Edit `src/{{top/file}}/{{main/file}}.clj`. The entry point is:
 
 `event` is the Lambda payload as a keywordized map. `context` contains `:request-id`, `:deadline-ms`, `:function-arn`, `:trace-id`, `:client-context`, `:cognito-identity`.
 
+## Adding to a monorepo
+
+If this Lambda lives inside a larger project alongside other Lambdas (e.g., `lambdas/{{artifact/id}}/`), use the included helper script to scaffold siblings:
+
+```bash
+# Copy the script to your monorepo root once
+cp scripts/new-lambda.sh ../../scripts/new-lambda.sh
+chmod +x ../../scripts/new-lambda.sh
+
+# Then from the monorepo root, add a new Lambda any time
+./scripts/new-lambda.sh notifications
+```
+
+Each Lambda is a self-contained project with its own `deps.edn`, `build.sh`, and `Dockerfile.build`.
+
 ## Development
 
 ```bash
