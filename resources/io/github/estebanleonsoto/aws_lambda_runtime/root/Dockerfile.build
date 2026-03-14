@@ -1,0 +1,49 @@
+FROM amazonlinux:2023 AS builder
+
+ARG GRAALVM_VERSION=21.0.2
+ARG GRAALVM_HOME=/opt/graalvm
+
+# Install build dependencies (gcc + zlib required by native-image linker)
+RUN dnf install -y gcc zlib-devel tar gzip which && dnf clean all
+
+# Install GraalVM Community Edition for JDK 21
+RUN curl -fL \
+      "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-${GRAALVM_VERSION}/graalvm-community-jdk-${GRAALVM_VERSION}_linux-x64_bin.tar.gz" \
+      -o /tmp/graalvm.tar.gz \
+    && tar -xzf /tmp/graalvm.tar.gz -C /opt \
+    && mv /opt/graalvm-community-openjdk-${GRAALVM_VERSION}+* ${GRAALVM_HOME} \
+    && rm /tmp/graalvm.tar.gz
+
+ENV JAVA_HOME=${GRAALVM_HOME}
+ENV PATH=${GRAALVM_HOME}/bin:$PATH
+
+# Install Clojure CLI tools
+RUN curl -fL https://download.clojure.org/install/linux-install.sh \
+      -o /tmp/install-clj.sh \
+    && chmod +x /tmp/install-clj.sh \
+    && /tmp/install-clj.sh \
+    && rm /tmp/install-clj.sh
+
+WORKDIR /build
+
+# Cache deps before copying source
+COPY deps.edn build.clj ./
+RUN clj -P && clj -A:build -P
+
+COPY . .
+
+# Build uberjar (AOT all namespaces)
+RUN clj -T:build uber
+
+# Compile to native image
+RUN native-image \
+      -jar target/bootstrap.jar \
+      -o target/bootstrap \
+      --no-fallback \
+      --initialize-at-build-time \
+      -H:+ReportExceptionStackTraces \
+      -H:ReflectionConfigurationFiles=resources/reflect-config.json
+
+# ---- export stage ----
+FROM amazonlinux:2023
+COPY --from=builder /build/target/bootstrap /bootstrap
