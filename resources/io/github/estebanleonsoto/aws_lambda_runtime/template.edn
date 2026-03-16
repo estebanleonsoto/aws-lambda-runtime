@@ -3,4 +3,5 @@
                ["test" "test/{{top/file}}/{{main/file}}"]
                ["root" ""]]
  :files       {"build.sh"             {:executable true}
+               "build-jvm.sh"         {:executable true}
                "scripts/new-lambda.sh" {:executable true}}}

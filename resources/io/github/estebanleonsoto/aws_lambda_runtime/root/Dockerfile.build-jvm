@@ -1,0 +1,38 @@
+FROM amazoncorretto:21-al2023 AS builder
+
+# Install Clojure CLI tools
+RUN yum install -y tar gzip git which && yum clean all
+RUN curl -fL https://download.clojure.org/install/linux-install.sh \
+      -o /tmp/install-clj.sh \
+    && chmod +x /tmp/install-clj.sh \
+    && /tmp/install-clj.sh \
+    && rm /tmp/install-clj.sh
+
+# Install the runtime library from source into the local Maven cache
+RUN git clone https://github.com/estebanleonsoto/aws-lambda-runtime.git /tmp/runtime \
+    && cd /tmp/runtime \
+    && clojure -T:build install \
+    && rm -rf /tmp/runtime
+
+WORKDIR /build
+
+# Cache deps before copying source
+COPY deps.edn build.clj ./
+RUN clojure -P && clojure -A:build -P
+
+COPY . .
+
+# Build uberjar (AOT all namespaces)
+RUN clojure -T:build uber
+
+# ---- runtime stage ----
+FROM amazoncorretto:21-al2023
+
+COPY --from=builder /build/target/bootstrap.jar /var/task/bootstrap.jar
+
+# bootstrap script: Lambda custom runtime entry point
+RUN printf '#!/bin/sh\nexec java $JAVA_OPTS -jar /var/task/bootstrap.jar\n' \
+      > /var/task/bootstrap \
+    && chmod +x /var/task/bootstrap
+
+ENTRYPOINT ["/var/task/bootstrap"]
