@@ -32,7 +32,7 @@ This generates a ready-to-deploy project with handler, tests, uberjar build, and
 
 ```clojure
 ;; deps.edn
-{:deps {com.thoughtsforge/aws-lambda-runtime {:mvn/version "0.01.000"}}}
+{:deps {com.thoughtsforge/aws-lambda-runtime {:mvn/version "0.01.001"}}}
 ```
 
 ## Usage
@@ -79,6 +79,68 @@ Because the handler is just a function, Ring-style middleware composition works 
                       wrap-logging
                       wrap-coerce-response)))
 ```
+
+## SSE Response Streaming
+
+For Lambda functions that stream responses via [Server-Sent Events](https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html), use the `aws-sse-lambda-runtime` namespace. This requires a **Lambda Function URL** configured with `InvokeMode=RESPONSE_STREAM`.
+
+### Installation
+
+Same dependency — the SSE runtime is bundled in the same jar:
+
+```clojure
+{:deps {com.thoughtsforge/aws-lambda-runtime {:mvn/version "0.01.001"}}}
+```
+
+### Usage
+
+```clojure
+(ns my-lambda.core
+  (:require [thoughtsforge.aws-sse-lambda-runtime :as runtime]
+            [cheshire.core :as json])
+  (:gen-class))
+
+(defn handle [event context write!]
+  (write! {:data (json/generate-string {:status "processing"})})
+  ;; ... do work ...
+  (write! {:data (json/generate-string {:result "done"})}))
+
+(defn -main [& _]
+  (try
+    (runtime/start! handle)
+    (catch Throwable e
+      (runtime/post-init-error! e)
+      (System/exit 1))))
+```
+
+### Handler signature
+
+```clojure
+(defn handle [event context write!] ...)
+```
+
+| Arg | Type | Description |
+|---|---|---|
+| `event` | keywordized map | The Lambda input payload |
+| `context` | map | Runtime metadata (same keys as standard runtime) |
+| `write!` | fn | Encodes and flushes one SSE event frame |
+
+**`write!` accepts:**
+
+| Form | Behaviour |
+|---|---|
+| `{:data "..."}` | Required field — the event payload |
+| `{:data "..." :event "mytype" :id "1"}` | Optional `event` type and `id` fields |
+| `"plain string"` | Treated as the `data` field |
+
+Each call to `write!` flushes a complete SSE frame immediately. The Lambda Runtime API begins reading the stream while your handler is writing, so the client receives events incrementally.
+
+### SSE API
+
+| Fn | Description |
+|---|---|
+| `(runtime/start! handler-fn)` | Starts the SSE polling loop. Blocks indefinitely. |
+| `(runtime/post-init-error! throwable)` | Reports a fatal init error to Lambda before exiting. |
 
 ## GraalVM
 
