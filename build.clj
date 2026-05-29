@@ -3,7 +3,7 @@
             [deps-deploy.deps-deploy :as dd]))
 
 (def lib 'com.thoughtsforge/aws-lambda-runtime)
-(def version "0.01.001")
+(def version "0.01.002")
 (def class-dir "target/classes")
 (def basis (delay (b/create-basis {:project "deps.edn"})))
 

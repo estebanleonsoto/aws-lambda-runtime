@@ -32,7 +32,7 @@ This generates a ready-to-deploy project with handler, tests, uberjar build, and
 
 ```clojure
 ;; deps.edn
-{:deps {com.thoughtsforge/aws-lambda-runtime {:mvn/version "0.01.001"}}}
+{:deps {com.thoughtsforge/aws-lambda-runtime {:mvn/version "0.01.002"}}}
 ```
 
 ## Usage
@@ -89,7 +89,7 @@ For Lambda functions that stream responses via [Server-Sent Events](https://docs
 Same dependency — the SSE runtime is bundled in the same jar:
 
 ```clojure
-{:deps {com.thoughtsforge/aws-lambda-runtime {:mvn/version "0.01.001"}}}
+{:deps {com.thoughtsforge/aws-lambda-runtime {:mvn/version "0.01.002"}}}
 ```
 
 ### Usage

@@ -86,7 +86,7 @@
                       (.build))
         ;; Start the HTTP POST before calling the handler so the Lambda Runtime API
         ;; begins reading the stream while the handler is writing to it.
-        http-fut  (future (.send @client request (HttpResponse$BodyHandlers/ofString)))]
+        http-fut  (future (.send ^HttpClient @client request (HttpResponse$BodyHandlers/ofString)))]
     (try
       (handler event context write!)
       (finally
