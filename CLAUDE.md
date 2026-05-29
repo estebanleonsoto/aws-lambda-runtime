@@ -68,7 +68,7 @@ Port is fixed at **7888** via `.nrepl.edn`. Start with `clj -M:dev`. nREPL disco
 ## Versioning
 
 Schema: `MAJOR.MINOR(2-digit).PATCH(3-digit)` — e.g., `0.01.000`, `0.01.001`, `1.00.000`.
-Current version: `0.01.000` (defined in `build.clj`).
+Current version: `0.01.002` (defined in `build.clj`).
 
 ## deps-new Template
 
