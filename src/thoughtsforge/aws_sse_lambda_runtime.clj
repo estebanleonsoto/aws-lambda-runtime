@@ -10,7 +10,8 @@
                 [cheshire.core :as json])
       (:gen-class))
 
-    (defn handle [event context write!]
+    (defn handle [event context set-headers! write!]
+      (set-headers! {\"Mcp-Session-Id\" (str (random-uuid))}) ; before first write!
       (write! {:data (json/generate-string {:status \"processing\"})})
       ;; ... do work ...
       (write! {:data (json/generate-string {:result \"done\"})}))
@@ -19,12 +20,17 @@
       (runtime/start! handle))
 
   The handler receives:
-    event   — keywordized map of the Lambda input payload
-    context — map with :request-id :deadline-ms :function-arn
-                        :trace-id :client-context :cognito-identity
-    write!  — fn that encodes and flushes one SSE event frame.
-              Accepts a map {:data str, :event str (optional), :id str (optional)}
-              or a plain string (used as the data field).
+    event        — keywordized map of the Lambda input payload
+    context      — map with :request-id :deadline-ms :function-arn
+                           :trace-id :client-context :cognito-identity
+    set-headers! — fn that merges a map of response headers into the response.
+                   Must be called BEFORE the first write! — headers are written
+                   in a prelude that precedes the SSE body. Calling it after the
+                   first write! throws IllegalStateException. Defaults:
+                   Content-Type: text/event-stream, Cache-Control: no-cache.
+    write!       — fn that encodes and flushes one SSE event frame.
+                   Accepts a map {:data str, :event str (optional), :id str (optional)}
+                   or a plain string (used as the data field).
 
   start! blocks indefinitely. Lambda controls the process lifecycle."
   (:require [thoughtsforge.aws-lambda-runtime.impl.http    :as http]
@@ -60,6 +66,25 @@
               (json/generate-string {:errorMessage (.getMessage e)
                                      :errorType    (.getName (class e))})))
 
+(def ^:private prelude-delimiter
+  "Eight NUL bytes separate the HTTP-integration-response prelude from the body.
+  Required by the application/vnd.awslambda.http-integration-response format."
+  (apply str (repeat 8 (char 0))))
+
+(def ^:private default-response-headers
+  {"Content-Type"  "text/event-stream"
+   "Cache-Control" "no-cache"})
+
+(defn- write-prelude!
+  "Writes the JSON status/headers prelude followed by the 8-NUL delimiter.
+  Must precede any SSE frame in the response stream."
+  [^java.io.Writer writer headers]
+  (let [^String prelude (str (json/generate-string {:statusCode 200
+                                                    :headers    headers})
+                             prelude-delimiter)]
+    (.write writer prelude)
+    (.flush writer)))
+
 (defn- sse-frame [m]
   (if (string? m)
     (str "data: " m "\n\n")
@@ -70,25 +95,49 @@
       (.append sb "\n")
       (.toString sb))))
 
+(defn- write-response!
+  "Runs handler against writer, managing the response lifecycle: a status/headers
+  prelude (written exactly once, before the first SSE frame) followed by each frame
+  the handler emits via write!. set-headers! merges header maps but only before the
+  prelude is flushed; calling it afterwards throws. The prelude is always sent, even
+  if the handler never writes a frame, so the status code and headers still apply."
+  [^java.io.Writer writer handler event context]
+  (let [headers         (atom default-response-headers)
+        prelude-sent?   (atom false)
+        ensure-prelude! (fn []
+                          (when (compare-and-set! prelude-sent? false true)
+                            (write-prelude! writer @headers)))
+        set-headers!    (fn [m]
+                          (when @prelude-sent?
+                            (throw (IllegalStateException.
+                                    "set-headers! must be called before the first write!")))
+                          (swap! headers merge m))
+        write!          (fn [m]
+                          (ensure-prelude!)
+                          (.write writer ^String (sse-frame m))
+                          (.flush writer))]
+    (handler event context set-headers! write!)
+    (ensure-prelude!)))
+
 (defn- stream-response! [request-id handler event context]
   (let [pipe-out  (PipedOutputStream.)
         ;; 64 KiB pipe buffer — large enough to avoid stalling on typical SSE events
         pipe-in   (PipedInputStream. pipe-out 65536)
         writer    (OutputStreamWriter. pipe-out "UTF-8")
-        write!    (fn [m]
-                    (.write writer (sse-frame m))
-                    (.flush writer))
         url       (api-url (str "/runtime/invocation/" request-id "/response"))
         request   (-> (HttpRequest/newBuilder (URI/create url))
                       (.POST (HttpRequest$BodyPublishers/ofInputStream
                               (reify java.util.function.Supplier (get [_] pipe-in))))
-                      (.header "Content-Type" "text/event-stream")
+                      ;; HTTP-integration-response carries status + headers in a
+                      ;; prelude; the real Content-Type now lives in the headers map.
+                      (.header "Content-Type" "application/vnd.awslambda.http-integration-response")
+                      (.header "Lambda-Runtime-Function-Response-Mode" "streaming")
                       (.build))
         ;; Start the HTTP POST before calling the handler so the Lambda Runtime API
         ;; begins reading the stream while the handler is writing to it.
         http-fut  (future (.send ^HttpClient @client request (HttpResponse$BodyHandlers/ofString)))]
     (try
-      (handler event context write!)
+      (write-response! writer handler event context)
       (finally
         ;; Closing the writer flushes and closes pipe-out, sending EOF to pipe-in,
         ;; which signals the body publisher that the stream is complete.
@@ -100,7 +149,7 @@
 
 (defn start!
   "Starts the SSE Lambda runtime polling loop with the given streaming handler.
-  handler must be a fn of [event context write!].
+  handler must be a fn of [event context set-headers! write!].
   Blocks indefinitely — Lambda controls the process lifecycle."
   [handler]
   (loop []
